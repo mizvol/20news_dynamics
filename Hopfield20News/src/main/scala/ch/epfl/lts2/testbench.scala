@@ -23,18 +23,19 @@ object Testbench {
 
     val fullRDD = sc.wholeTextFiles("./data/20news-bydate-train/*").cache()
 
-    val text = fullRDD.map { case(file, text) => text }.cache()
+    val text = fullRDD.map { case (file, text) => text }.cache()
 
-    /***
+    /** *
       * Tokenization. Split raw text content in each document into a collection of terms. Get vocabulary.
       */
 
     val nonWordSplit = text.flatMap(t => t.split("""\W+""").map(_.toLowerCase())).cache()
-//
-    val regexp = """[^0-9]*""".r
+    //
+    val regexp =
+    """[^0-9]*""".r
     val filterNumbers = nonWordSplit.filter(token => regexp.pattern.matcher(token).matches()).cache()
 
-////  Frequent words
+    ////  Frequent words
     val tokenCounts = filterNumbers.map(t => (t, 1)).reduceByKey(_ + _)
 
     val frequentWords = tokenCounts.sortBy(-_._2).map(_._1).take(20)
@@ -42,13 +43,13 @@ object Testbench {
     val filterFrequentWords = filterNumbers.filter(word => !frequentWords.contains(word) & word.length() > 2).distinct
     val vocabulary = filterFrequentWords.collect.toList
 
-    /***
+    /** *
       * End of tokenization
       */
 
-//    val vocabulary = List("okcforum", "thoughts", "version", "sandvik", "wrote", "someone", "originate", "anyway")
+    //    val vocabulary = List("okcforum", "thoughts", "version", "sandvik", "wrote", "someone", "originate", "anyway")
 
-    /***
+    /** *
       * Prepare texts
       */
     val wordsOnly = text.map(t => t.split("""\W+"""))
@@ -57,26 +58,34 @@ object Testbench {
       .map(t => t
         .map(_.toLowerCase))
 
-    val windowedTexts = wordsOnly.map(_.toList).collect.map(_.sliding(3,3).toList)
+    val windowedTexts = wordsOnly.map(_.toList).collect.map(_.sliding(10, 10).toList)
 
-    val oneText = windowedTexts.take(1)(0)
+//    val oneText = windowedTexts.take(1)(0)
 
-    /***
+    /** *
       * End of prepare text
       */
 
     val vocabLength = vocabulary.length
 
-    /***
+    /** *
       * Get time series
       */
-
-    val pw = new PrintWriter(new File("test.txt"))
-    for(window <- oneText){
-      val indexes = vocabulary.filter(window.contains(_)).map(word => vocabulary.indexOf(word))
-      val vector = Vectors.sparse(vocabLength, indexes.toArray, Array.fill(indexes.length)(1)).toDense.toString()
-      pw.write(vector.substring(1, vector.length - 1) + "\n")
+    def writeTimeSeries(oneText: List[List[String]], fileName: String) = {
+      val pw = new PrintWriter(new File("./ts/" + fileName + ".txt"))
+      for (window <- oneText) {
+        val indexes = vocabulary.filter(window.contains(_)).map(word => vocabulary.indexOf(word))
+        val vector = Vectors.sparse(vocabLength, indexes.toArray, Array.fill(indexes.length)(1)).toString()
+        pw.write(vector.substring(1, vector.length - 1) + "\n")
+      }
+      pw.close()
     }
-    pw.close()
+
+    var i = 0
+    for(text <- windowedTexts) {
+      i = i+1
+      writeTimeSeries(text, "text" + i)
+    }
+
   }
 }
