@@ -1,6 +1,7 @@
 import java.io.{File, PrintWriter}
 
 import ch.epfl.lts2.Utils._
+import org.antlr.v4.runtime.Vocabulary
 import org.apache.spark.mllib.linalg.Vectors
 import org.apache.spark.sql.SparkSession
 
@@ -71,7 +72,7 @@ object Testbench {
     /** *
       * Get time series
       */
-    def writeTimeSeries(oneText: List[List[String]], fileName: String) = {
+    def writeTimeSeries(oneText: List[List[String]], vocabulary: List[String], vocabLength: Int, fileName: String) = {
       val pw = new PrintWriter(new File("./ts/" + fileName + ".txt"))
       for (window <- oneText) {
         val indexes = vocabulary.filter(window.contains(_)).map(word => vocabulary.indexOf(word))
@@ -84,7 +85,7 @@ object Testbench {
     var i = 0
     for(text <- windowedTexts) {
       i = i+1
-      writeTimeSeries(text, "text" + i)
+      writeTimeSeries(text, vocabulary, vocabLength, "text" + i)
     }
 
   }
