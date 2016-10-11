@@ -10,20 +10,22 @@ import org.apache.spark.mllib.linalg.distributed.{IndexedRow, IndexedRowMatrix, 
   */
 object Test {
   def main(args: Array[String]): Unit = {
-    //  suppressLogs(List("org", "akka"))
-    //  /*
-    //  Create Spark Session and define Spark Context
-    //   */
-    //  val spark = SparkSession.builder
-    //    .master("local")
-    //    .appName("Test")
-    //    .config("spark.sql.warehouse.dir", "../")
-    //    .getOrCreate()
-    //
-    //  val sc = spark.sparkContext
+    suppressLogs(List("org", "akka"))
+    /*
+    Create Spark Session and define Spark Context
+     */
+    val spark = SparkSession.builder
+      .master("local")
+      .appName("Test")
+      .config("spark.sql.warehouse.dir", "../")
+      .getOrCreate()
 
-    val l1 = List(1,1,1)
-    val l2 = List(1,0,1)
-    println(l1.zip(l2).count({case (x,y) => x == 1 & y == 1}))
+    val sc = spark.sparkContext
+
+    val fullRDD = sc.wholeTextFiles("./testSamples/*")
+    val texts = fullRDD.map {case(file, text) => text}
+
+    println(texts.take(2).mkString(","))
+
   }
 }
