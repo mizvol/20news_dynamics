@@ -1,5 +1,7 @@
 package ch.epfl.lts2
 
+import java.io.PrintWriter
+
 import org.apache.spark.graphx.Graph
 
 /**
@@ -30,4 +32,13 @@ package object Utils {
       "        </edges>\n" +
       " </graph>\n" +
       "</gexf>"
+
+  def compareLTimeSeries(l1: List[Any], l2: List[Any]) =
+    l1.zip(l2).count({case (x,y) => x.toString.toDouble == 1.0 & y.toString.toDouble == 1.0})
+
+  def saveGraph[VD, ED](graph: Graph[VD, ED], fileName: String) = {
+    val pw = new PrintWriter("myGraph.gexf")
+    pw.write(toGexf(graph))
+    pw.close
+  }
 }

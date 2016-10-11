@@ -21,11 +21,5 @@ object Test {
       .getOrCreate()
 
     val sc = spark.sparkContext
-
-    val fullRDD = sc.wholeTextFiles("./testSamples/*")
-    val texts = fullRDD.map {case(file, text) => text}
-
-    println(texts.take(2).mkString(","))
-
   }
 }

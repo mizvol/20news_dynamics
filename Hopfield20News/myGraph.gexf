@@ -2,29 +2,44 @@
 <gexf xmlns="http://www.gexf.net/1.2draft" version="1.2">
  <graph mode="static" defaultedgetype="directed">
  <nodes>
-      <node id="4" label="(time,List(0.0, 0.0, 1.0, 0.0))" />
-      <node id="0" label="(text,List(1.0, 0.0, 0.0, 1.0))" />
-      <node id="1" label="(template,List(1.0, 0.0, 0.0, 0.0))" />
-      <node id="3" label="(extract,List(0.0, 1.0, 0.0, 0.0))" />
-      <node id="5" label="(series,List(0.0, 0.0, 1.0, 0.0))" />
-      <node id="2" label="(aimed,List(0.0, 1.0, 0.0, 0.0))" />
+      <node id="4" label="(time,List(0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0))" />
+      <node id="0" label="(text,List(1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0))" />
+      <node id="1" label="(template,List(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0))" />
+      <node id="6" label="(another,List(0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0))" />
+      <node id="3" label="(extract,List(0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0))" />
+      <node id="7" label="(order,List(0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0))" />
+      <node id="5" label="(series,List(0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0))" />
+      <node id="2" label="(aimed,List(0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0))" />
       </nodes>
       <edges>
-        <edge source="0" target="1" label="1" />
+        <edge source="0" target="1" label="2" />
         <edge source="0" target="2" label="0" />
         <edge source="0" target="3" label="0" />
         <edge source="0" target="4" label="0" />
         <edge source="0" target="5" label="0" />
+        <edge source="0" target="6" label="1" />
+        <edge source="0" target="7" label="0" />
         <edge source="1" target="2" label="0" />
         <edge source="1" target="3" label="0" />
         <edge source="1" target="4" label="0" />
         <edge source="1" target="5" label="0" />
+        <edge source="1" target="6" label="1" />
+        <edge source="1" target="7" label="0" />
         <edge source="2" target="3" label="1" />
         <edge source="2" target="4" label="0" />
         <edge source="2" target="5" label="0" />
+        <edge source="2" target="6" label="0" />
+        <edge source="2" target="7" label="0" />
         <edge source="3" target="4" label="0" />
-        <edge source="3" target="5" label="0" />
+        <edge source="3" target="5" label="1" />
+        <edge source="3" target="6" label="0" />
+        <edge source="3" target="7" label="0" />
         <edge source="4" target="5" label="1" />
+        <edge source="4" target="6" label="0" />
+        <edge source="4" target="7" label="0" />
+        <edge source="5" target="6" label="0" />
+        <edge source="5" target="7" label="0" />
+        <edge source="6" target="7" label="0" />
         </edges>
  </graph>
 </gexf>

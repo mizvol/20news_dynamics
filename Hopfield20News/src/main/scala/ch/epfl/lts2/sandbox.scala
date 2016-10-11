@@ -50,8 +50,8 @@ object sandbox {
 
     val windowedDoc = doc.map(_.sliding(3, 3).toList)
 
-//    val vocabulary = List("text", "template", "aimed", "extract", "time", "series", "another", "order")
-    val vocabulary = List("text", "template", "aimed", "extract", "time", "series")
+    val vocabulary = List("text", "template", "aimed", "extract", "time", "series", "another", "order")
+//    val vocabulary = List("text", "template", "aimed", "extract", "time", "series")
 
     val vocabLength = vocabulary.length
 
@@ -61,15 +61,16 @@ object sandbox {
       writeTimeSeries(text, vocabulary, vocabLength, "text" + i)
     }
 
-    /** *
+    /**
       * DataFrame of time series
       */
     val fields = vocabulary.map(StructField(_, StringType, nullable = true))
     val schema = StructType(fields)
 
-    val tsRDD = spark.sparkContext.textFile("./testSamples/text1.txt")
+    val tsRDD = sc.textFile("./testSamples/text*.txt")
 
     val rowRDD = tsRDD.map(_.split(",")).map(attr => Row.fromSeq(attr))
+
     val tsDF = spark.createDataFrame(rowRDD, schema)
     tsDF.show()
 
@@ -86,7 +87,7 @@ object sandbox {
       .map(pair => Edge(pair._1, pair._2, 1.0))
       .collect.toList
 
-    /** *
+    /**
       * GraphX
       */
     // Construct a graph
@@ -98,13 +99,9 @@ object sandbox {
     val graph = Graph(vertices, edges)
     println(graph.triplets.collect.mkString("\n"))
 
-    def compareLists(l1: List[Any], l2: List[Any]) = l1.zip(l2).count({case (x,y) => x.toString.toDouble == 1.0 & y.toString.toDouble == 1.0})
-
-    val trainedGraph = graph.mapTriplets(triplet => compareLists(triplet.dstAttr._2, triplet.srcAttr._2))
+    val trainedGraph = graph.mapTriplets(triplet => compareLTimeSeries(triplet.dstAttr._2, triplet.srcAttr._2))
     println(trainedGraph.edges.collect.mkString("\n"))
 
-    val pw = new PrintWriter("myGraph.gexf")
-    pw.write(toGexf(trainedGraph))
-    pw.close
+    saveGraph(trainedGraph, "myGraph.gexf")
   }
 }
