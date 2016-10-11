@@ -72,20 +72,10 @@ object Testbench {
     /** *
       * Get time series
       */
-    def writeTimeSeries(oneText: List[List[String]], vocabulary: List[String], vocabLength: Int, fileName: String) = {
-      val pw = new PrintWriter(new File("./ts/" + fileName + ".txt"))
-      for (window <- oneText) {
-        val indexes = vocabulary.filter(window.contains(_)).map(word => vocabulary.indexOf(word))
-        val vector = Vectors.sparse(vocabLength, indexes.toArray, Array.fill(indexes.length)(1)).toString()
-        pw.write(vector.substring(1, vector.length - 1) + "\n")
-      }
-      pw.close()
-    }
-
     var i = 0
     for(text <- windowedTexts) {
       i = i+1
-      writeTimeSeries(text, vocabulary, vocabLength, "text" + i)
+      writeSparseTimeSeries(text, vocabulary, vocabLength, "text" + i)
     }
 
   }

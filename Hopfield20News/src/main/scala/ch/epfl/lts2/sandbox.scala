@@ -32,16 +32,6 @@ object sandbox {
 
     val sc = spark.sparkContext
 
-    def writeTimeSeries(oneText: List[List[String]], vocabulary: List[String], vocabLength: Int, fileName: String) = {
-      val pw = new PrintWriter(new File("./testSamples/" + fileName + ".txt"))
-      for (window <- oneText) {
-        val indexes = vocabulary.filter(window.contains(_)).map(word => vocabulary.indexOf(word))
-        val vector = Vectors.sparse(vocabLength, indexes.toArray, Array.fill(indexes.length)(1)).toDense.toString()
-        pw.write(vector.substring(1, vector.length - 1) + "\n")
-      }
-      pw.close()
-    }
-
     val doc = List(
       List("our", "text", "template", "aimed", "to", "extract", "time", "series", "from", "text"),
       List("another", "text", "template", "in", "order", "to", "extract", "series", "from", "text"))
@@ -58,7 +48,7 @@ object sandbox {
     var i = 0
     for (text <- windowedDoc) {
       i = i + 1
-      writeTimeSeries(text, vocabulary, vocabLength, "text" + i)
+      writeDenseTimeSeries(text, vocabulary, vocabLength, "text" + i)
     }
 
     /**
