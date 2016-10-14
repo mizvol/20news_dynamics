@@ -21,5 +21,18 @@ object Test {
       .getOrCreate()
 
     val sc = spark.sparkContext
+
+//    val v1 = Vectors.dense(1,0,1,1,1).toSparse
+//    val v2 = Vectors.dense(1,1,1,0,0).toSparse
+//    println(v1.indices.mkString(","))
+//    println(Vectors.sqdist(v1, v2))
+//
+//    val s1 = Seq(1,2,3)
+//    val s2 = Seq(2,3,4)
+//    println(s1.intersect(s2).length)
+
+
+    println(List.range(1, 10))
+
   }
 }
