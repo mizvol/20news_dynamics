@@ -1,8 +1,10 @@
 import ch.epfl.lts2.Utils._
 import org.apache.spark.graphx.{Graph, _}
+import org.apache.spark.ml.feature.StopWordsRemover
 import org.apache.spark.mllib.linalg.Vectors
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{Row, SparkSession}
+import scala.math.log
 
 /**
   * Created by volodymyrmiz on 05.10.16.
@@ -17,11 +19,12 @@ object Testbench {
       .master("local")
       .appName("Hopfileld Filtering 20NEWS")
       .config("spark.sql.warehouse.dir", "../")
-      .config("spark.driver.maxResultSize", "7g")
+      .config("spark.driver.maxResultSize", "10g")
       .getOrCreate()
 
     val sc = spark.sparkContext
 
+    println("Reading data...")
     val fullRDD = sc.wholeTextFiles("./data/20news-bydate-train/*").cache()
 
     val text = fullRDD.map { case (file, text) => text }.cache()
@@ -29,33 +32,62 @@ object Testbench {
     /**
       * Tokenization. Split raw text content in each document into a collection of terms. Get vocabulary.
       */
-    println("Tokenization started...")
-    val nonWordSplit = text.flatMap(t => t.split("""\W+""").map(_.toLowerCase())).cache()
+    println("Removing emails and URLs...")
+    val rxEmail = """(?i)\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,4}\b""".r
+    val rxWebsite = """([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?""".r
+    val rxNumbers = """[^0-9]*""".r
 
-    val regexp = """[^0-9]*""".r
-    val filterNumbers = nonWordSplit.filter(token => regexp.pattern.matcher(token).matches()).cache()
+    val textWOEmails = text
+      .map(t => rxEmail.replaceAllIn(t, ""))
+      .map(t => rxWebsite.replaceAllIn(t, ""))
 
-    //  Frequent words
-    val tokenCounts = filterNumbers.map(t => (t, 1)).reduceByKey(_ + _)
-    println("Unique words: " + tokenCounts.collect().length)
+    val stopWords = StopWordsRemover.loadDefaultStopWords("english")
+
+    println("Cleaning texts. Tokenization...")
+    val wordsData = textWOEmails.map(t => t.split("""\W+"""))
+      .map(t => t.map(_.toLowerCase.replaceAll("_", ""))
+        .filter(token => rxNumbers.pattern.matcher(token).matches() & token.length() > 2 & !stopWords.contains(token)))
+
+    println("TF...")
+    val wordsTF = wordsData
+      .map(text => text.groupBy(word => word).map { case (word, num) => (word, num.length) })
+      .map(text => text.map { case (word, numOccur) => (word, numOccur / text.values.max.toDouble) })
+
+    println("IDF...")
+    val nDocs = wordsData.count()
+    val wordsIDF = wordsData
+      .map(text => text.distinct)
+      .flatMap(w => w)
+      .groupBy(w => w)
+      .map { case (word, numOccur) => (word, log(nDocs / numOccur.size) / log(2)) }.collect().toList.toMap
+
+    println("TFIDF...")
+    val wordsTFIDF = wordsTF.map(text => text.map { case (word, tf) => (word, tf * wordsIDF.get(word).get) })
+    println(wordsTFIDF.take(2).mkString("\n"))
+
+    val wordsImportant = wordsTFIDF.map(text => text.filter { case (word: String, tfidf: Double) => tfidf > text.values.sum / text.size })
+    println(wordsImportant.take(2).mkString("\n"))
 
     println("Preparing vocabulary...")
-    val frequentWords = tokenCounts.sortBy(-_._2).map(_._1).take(20)
-    val rareWords = tokenCounts.filter(_._2 < 10).map(_._1).collect()
-    val filterWords = filterNumbers.distinct().filter(word => !rareWords.contains(word) & !frequentWords.contains(word) & word.length() > 3)
-    val vocabulary = filterWords.collect.toList
-    println("Vocabulary length: " + vocabulary.length)
 
-    println("Preparing texts...")
-    val wordsOnly = text.map(t => t.split("""\W+"""))
-      .map(t => t
-        .filter(token => regexp.pattern.matcher(token).matches() & token.length() > 2))
-      .map(t => t
-        .map(_.toLowerCase))
+    val vocabulary = wordsImportant
+      .map(text => text
+        .map { case (word, tfidf) => word })
+      .flatMap(w => w)
+      .distinct()
+      .collect()
+      .toList
 
-    val windowedTexts = wordsOnly.map(_.toList).collect.map(_.sliding(20, 20).toList)
-
+    println(vocabulary.contains("lunatic"))
     val vocabLength = vocabulary.length
+    println("Vocabulary length: " + vocabLength)
+
+
+// @TODO Filter texts based on extracted vocabulary. Assign tfidf coefficients to each word in a text in order to extract time series of tfidf coefficients.
+
+    
+    println("Windowing texts...")
+    val windowedTexts = wordsData.map(_.toList).collect.map(_.sliding(20, 20).toList)
 
     println("Extracting time series...")
     var i = 0
@@ -64,11 +96,12 @@ object Testbench {
       writeDenseTimeSeries(text, vocabulary, vocabLength, "text" + i)
     }
 
-    println("Preparing vertices for GraphX...")
+    println("Transposing dataset...")
     val tsRDD = sc.textFile("./denseTs/text*.txt")
     val rowRDD = tsRDD.map(_.split(",")).map(attr => Row.fromSeq(attr)).cache()
     val trRDD = sc.parallelize(rowRDD.map(_.toSeq).collect.toSeq.transpose)
 
+    println("Preparing vertices for GraphX...")
     //    val verticesList = trRDD.zipWithIndex().map(ts => (ts._2.toLong, (vocabulary(ts._2.toInt), ts._1.toList)))
     val verticesList = trRDD.zipWithIndex().map(ts => (ts._2.toLong, (vocabulary(ts._2.toInt), Vectors.dense(ts._1.map(_.toString.toDouble).toArray).toSparse.indices.toSeq)))
 
@@ -84,10 +117,9 @@ object Testbench {
     trRDD.unpersist()
     rowRDD.unpersist()
     tsRDD.unpersist()
-    wordsOnly.unpersist()
+    wordsData.unpersist()
     text.unpersist()
     fullRDD.unpersist()
-    nonWordSplit.unpersist()
 
     /**
       * GraphX
@@ -112,6 +144,6 @@ object Testbench {
 
     println("Saving graph...")
     saveGraph(connectedGraph, "oneCategory.gexf")
-//    toCSV(graphWithoutZeroEdges)
+    ////    toCSV(graphWithoutZeroEdges)
   }
 }
