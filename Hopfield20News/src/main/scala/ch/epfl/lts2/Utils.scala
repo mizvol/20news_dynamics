@@ -38,7 +38,7 @@ package object Utils {
   def toCSV[VD, ED](graph: Graph[VD, ED]) = {
     val pwv = new PrintWriter("vertices.csv")
     pwv.write("Id,Label\n")
-    for (vertex <- graph.vertices.collect()){
+    for (vertex <- graph.vertices.collect()) {
       pwv.write(vertex._1.toString() + "," + vertex._2.toString() + "\n")
     }
     pwv.close()
@@ -57,35 +57,53 @@ package object Utils {
     pw.close
   }
 
-  def writeDenseTimeSeries(oneText: List[List[String]], vocabulary: List[String], vocabLength: Int, fileName: String) = {
+  def writeDenseTimeSeries(text: List[Map[String, Double]], vocabulary: List[String], vocabLength: Int, fileName: String) = {
     val pw = new PrintWriter(new File("./denseTs/" + fileName + ".txt"))
-    for (window <- oneText) {
-      val indexes = vocabulary.filter(window.contains(_)).map(word => vocabulary.indexOf(word))
-      val vector = Vectors.sparse(vocabLength, indexes.toArray, Array.fill(indexes.length)(1)).toDense.toString()
-      pw.write(vector.substring(1, vector.length - 1) + "\n")
+    for (window <- text) {
+      val indexes = vocabulary.filter(window.keys.toList.contains(_)).map(word => (vocabulary.indexOf(word), window.get(word).get))
+      val vector = Vectors.sparse(vocabLength, indexes.map(_._1).toArray, indexes.map(_._2).toArray)
+      if (vector.toSparse.indices.size != 0) {
+        val vectorString = vector.toDense.toString()
+        pw.write(vectorString.substring(1, vectorString.length - 1) + "\n")
+      }
     }
     pw.close()
   }
 
-  def writeSparseTimeSeries(oneText: List[List[String]], vocabulary: List[String], vocabLength: Int, fileName: String) = {
-    val pw = new PrintWriter(new File("./sparseTs/" + fileName + ".txt"))
-    for (window <- oneText) {
-      val indexes = vocabulary.filter(window.contains(_)).map(word => vocabulary.indexOf(word))
-      val vector = Vectors.sparse(vocabLength, indexes.toArray, Array.fill(indexes.length)(1))
-      pw.write(vector + "\n")
+  def writeSparseTimeSeries(text: List[Map[String, Double]], vocabulary: List[String], vocabLength: Int, fileName: String) = {
+    val pw = new PrintWriter(new File("./sparseTs" + fileName + ".txt"))
+    for (window <- text) {
+      val indexes = vocabulary.filter(window.keys.toList.contains(_)).map(word => (vocabulary.indexOf(word), window.get(word).get))
+      val vector = Vectors.sparse(vocabLength, indexes.map(_._1).toArray, indexes.map(_._2).toArray)
+      if (vector.toSparse.indices.size != 0) {
+        pw.write(vector + "\n")
+      }
     }
     pw.close()
   }
 
-  def removeLowWeightEdges[VD: ClassTag, ED: ClassTag](graph: Graph[VD, ED], minWeight: Int) = {
+  def removeLowWeightEdges[VD: ClassTag, ED: ClassTag](graph: Graph[VD, ED], minWeight: Double) = {
     Graph(graph.vertices,
-      graph.edges.filter(_.attr.toString.toInt > minWeight)
+      graph.edges.filter(_.attr.toString.toDouble > minWeight)
     )
   }
 
-  def removeSingletons[VD: ClassTag,ED: ClassTag](graph:Graph[VD,ED]) =
-    Graph(graph.triplets.map(et => (et.srcId,et.srcAttr))
-      .union(graph.triplets.map(et => (et.dstId,et.dstAttr)))
+  def removeSingletons[VD: ClassTag, ED: ClassTag](graph: Graph[VD, ED]) =
+    Graph(graph.triplets.map(et => (et.srcId, et.srcAttr))
+      .union(graph.triplets.map(et => (et.dstId, et.dstAttr)))
       .distinct,
       graph.edges)
+
+  def compareTimeSeries(m1: Map[Int, Double], m2: Map[Int, Double]): Double = {
+    val commonKeys = m2.keySet.intersect(m1.keySet)
+
+    if (commonKeys.size == 0) 0
+    else {
+      var weight: Double = 0.0
+      for (key <- commonKeys) {
+        weight += (m1.get(key).get + m2.get(key).get) / 2.0
+      }
+      return weight
+    }
+  }
 }
