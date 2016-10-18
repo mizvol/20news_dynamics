@@ -28,7 +28,7 @@ package object Utils {
         v._2 + "\" />\n").collect.mkString +
       "      </nodes>\n" +
       "      <edges>\n" +
-      g.edges.map(e => if (!List(1 to 10).contains(e.attr)) "        <edge source=\"" + e.srcId +
+      g.edges.map(e => "        <edge source=\"" + e.srcId +
         "\" target=\"" + e.dstId + "\" label=\"" + e.attr +
         "\" />\n").collect.mkString +
       "        </edges>\n" +

@@ -17,10 +17,12 @@ object TsExtractor {
     Create Spark Session and define Spark Context
      */
     val spark = SparkSession.builder
-      .master("local")
+      .master("local[*]")
       .appName("Time Series Extractor")
       .config("spark.sql.warehouse.dir", "../")
-      .config("spark.driver.maxResultSize", "10g")
+      .config("spark.driver.maxResultSize", "4g")
+      .config("spark.executor.cores", "1")
+      .config("spark.executor.memory", "10g")
       .getOrCreate()
 
     val sc = spark.sparkContext
@@ -96,13 +98,9 @@ object TsExtractor {
       }
 
     println("Windowing texts...")
-    val windowedTexts = wordsDataIndexedByTFIDF.collect.map(_.sliding(20, 20).toList).map(list => list.map(_.toMap))
+    val windowedTexts = sc.parallelize(wordsDataIndexedByTFIDF.collect.map(_.sliding(20, 20).toList).map(list => list.map(_.toMap))).zipWithIndex()
 
-    println("Extracting time series...")
-    var i = 0
-    for (t <- windowedTexts) {
-      i = i + 1
-      writeDenseTimeSeries(t, vocabList, vocabLength, "text" + i)
-    }
+    println("Generating time series...")
+    windowedTexts.map { case (list, index) => writeDenseTimeSeries(list, vocabList, vocabLength, "text" + index) }.count()
   }
 }

@@ -15,10 +15,12 @@ object TrainGraph {
     Create Spark Session and define Spark Context
      */
     val spark = SparkSession.builder
-      .master("local")
+      .master("local[*]")
       .appName("Hopfileld Filtering 20NEWS")
       .config("spark.sql.warehouse.dir", "../")
-      .config("spark.driver.maxResultSize", "10g")
+      .config("spark.driver.maxResultSize", "4g")
+      .config("spark.executor.cores", "1")
+      .config("spark.executor.memory", "10g")
       .getOrCreate()
 
     val sc = spark.sparkContext
