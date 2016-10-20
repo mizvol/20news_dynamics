@@ -13,7 +13,7 @@ object TransposeTS {
     Create Spark Session and define Spark Context
      */
     val spark = SparkSession.builder
-      .master("local")
+      .master("local[*]")
       .appName("Transpose column time-series")
       .config("spark.sql.warehouse.dir", "../")
       .config("spark.driver.maxResultSize", "10g")
@@ -26,6 +26,6 @@ object TransposeTS {
     val rowRDD = tsRDD.map(_.split(",")).map(attr => Row.fromSeq(attr)).cache()
     val trRDD = sc.parallelize(rowRDD.map(_.toSeq).collect.toSeq.transpose)
 
-    trRDD.saveAsObjectFile("./data/trRDD")
+    trRDD.zipWithIndex().saveAsObjectFile("./data/trRDD")
   }
 }

@@ -25,9 +25,9 @@ object TrainGraph {
 
     val sc = spark.sparkContext
 
-    val trRDD = sc.objectFile[ArrayBuffer[String]]("./data/trRDD")
+    val trRDD = sc.objectFile[(ArrayBuffer[String], Long)]("./data/trRDD").sortBy(_._2).map(_._1)
 
-    val vocabulary = sc.textFile("./data/vocabRDD").collect().toList
+    val vocabulary = sc.objectFile[(String, Long)]("./data/vocabRDD").sortBy(_._2).map(_._1).collect().toList
 
     println("Vocabulary length: " + vocabulary.length)
     println("Preparing vertices for GraphX...")

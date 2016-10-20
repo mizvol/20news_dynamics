@@ -80,7 +80,7 @@ object TsExtractor {
       .flatMap(w => w)
       .distinct()
 
-    vocabRDD.saveAsTextFile("./data/vocabRDD")
+    vocabRDD.zipWithIndex().saveAsObjectFile("./data/vocabRDD")
 
     val vocabList = vocabRDD
       .collect()
