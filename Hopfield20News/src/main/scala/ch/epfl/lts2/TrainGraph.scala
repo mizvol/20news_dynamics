@@ -56,7 +56,7 @@ object TrainGraph {
     println("Training complete graph with " + edgesRDD.count() + " edges...")
     val trainedGraph = graph.mapTriplets(triplet => compareTimeSeries(triplet.dstAttr._2, triplet.srcAttr._2)).mapVertices((vID, attr) => attr._1).cache()
     println("Removing low weight edges...")
-    val prunedGraph = removeLowWeightEdges(trainedGraph, minWeight = 20.0).cache()
+    val prunedGraph = removeLowWeightEdges(trainedGraph, minWeight = 3.0).cache()
     println("Filtered graph with " + prunedGraph.edges.count() + " edges.")
     println("Removing sigletone vertices...")
     val connectedGraph = removeSingletons(prunedGraph).cache()
