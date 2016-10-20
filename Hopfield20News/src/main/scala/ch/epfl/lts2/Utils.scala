@@ -101,20 +101,19 @@ package object Utils {
     else {
       var weight: Double = 0.0
       for (key <- commonKeys) {
-//        weight += (m1.get(key).get + m2.get(key).get) / 2.0
         val value1 = m1.get(key).get
         val value2 = m2.get(key).get
-        var update = 0.0
+        var threshold = 0.0
 
         if (value1 > value2)
-          update = value2/value1
+          threshold = value2/value1
         else
-          update = value1/value2
+          threshold = value1/value2
 
-        if (update > 0.5) weight += update
-        else weight -= update
+        if (threshold > 0.5) weight += threshold
+        else weight -= threshold
       }
-      return weight
+      weight
     }
   }
 }
