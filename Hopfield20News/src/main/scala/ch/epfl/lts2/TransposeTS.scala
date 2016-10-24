@@ -24,7 +24,16 @@ object TransposeTS {
     println("Transposing dataset...")
     val tsRDD = sc.textFile("./denseTs/text*.txt")
     val rowRDD = tsRDD.map(_.split(",")).map(attr => Row.fromSeq(attr)).cache()
-    val trRDD = sc.parallelize(rowRDD.map(_.toSeq).collect.toSeq.transpose)
+//    val trRDD = sc.parallelize(rowRDD.map(_.toSeq).collect.toSeq.transpose)
+    val trRDD = rowRDD.map(_.toSeq)
+      .zipWithIndex()
+      .map{case(seq, index) => seq.map((_, index))}
+      .map(_.zipWithIndex)
+      .flatMap(p=>p)
+      .groupBy(_._2)
+      .map(pair => (pair._1, pair._2.map(_._1).toList.sortBy(_._2).map(_._1)))
+      .sortBy(_._1)
+      .map(_._2)
 
     trRDD.zipWithIndex().saveAsObjectFile("./data/trRDD")
   }
