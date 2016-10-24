@@ -45,11 +45,12 @@ object TsExtractor {
       .map(t => rxWebsite.replaceAllIn(t, ""))
 
     val stopWords = StopWordsRemover.loadDefaultStopWords("english")
+    val frequentWords = sc.textFile("./data/frequentWords.txt").take(600).toList
 
     println("Cleaning texts. Tokenization...")
     val wordsData = textWOEmails.map(t => t.split("""\W+"""))
       .map(t => t.map(_.toLowerCase.replaceAll("_", ""))
-        .filter(token => rxNumbers.pattern.matcher(token).matches() & token.length() > 2 & !stopWords.contains(token)))
+        .filter(token => rxNumbers.pattern.matcher(token).matches() & token.length() > 2 & !stopWords.contains(token) & !frequentWords.contains(token)))
 
     println("TF...")
     val wordsTF = wordsData
