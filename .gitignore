@@ -22,6 +22,7 @@ project/plugins/project/
 # User-specific stuff:
 .idea/workspace.xml
 .idea/tasks.xml
+.idea/
 
 # Sensitive or high-churn files:
 .idea/dataSources.ids
@@ -57,8 +58,3 @@ com_crashlytics_export_strings.xml
 crashlytics.properties
 crashlytics-build.properties
 fabric.properties
-
-#data folders
-data/
-denseTs/
-sparseTs/
