@@ -1,2 +1,2 @@
-# 20news_dynamics
-Clustering 20news dataset
+# Spiking texts model
+20news dataset and CNN news dataset
