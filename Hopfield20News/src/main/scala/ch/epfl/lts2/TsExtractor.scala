@@ -1,11 +1,15 @@
 package ch.epfl.lts2
 
+import java.io.File
+
 import org.apache.spark.ml.feature.StopWordsRemover
 import org.apache.spark.sql.SparkSession
 import ch.epfl.lts2.Utils._
+import ch.epfl.lts2.Globals._
 
 import scala.collection.immutable.ListMap
 import scala.math._
+import scala.reflect.io.Path
 
 /**
   * Created by volodymyrmiz on 16.10.16.
@@ -27,8 +31,12 @@ object TsExtractor {
 
     val sc = spark.sparkContext
 
+    val windowSize = 2000
+    val numFrequentWords = 5000
+
     println("Reading data...")
-    val fullRDD = sc.wholeTextFiles("./data/20news-bydate-train/*").cache()
+    val fullRDD = sc.wholeTextFiles(PATH_DATASET).cache()
+    //    val fullRDD = sc.wholeTextFiles("./data/cnn/stories/*").cache()
 
     val text = fullRDD.map { case (file, text) => text }.cache()
 
@@ -45,7 +53,7 @@ object TsExtractor {
       .map(t => rxWebsite.replaceAllIn(t, ""))
 
     val stopWords = StopWordsRemover.loadDefaultStopWords("english")
-    val frequentWords = sc.textFile("./data/frequentWords.txt").take(600).toList
+    val frequentWords = sc.textFile("./frequentWords.txt").take(numFrequentWords).toList
 
     println("Cleaning texts. Tokenization...")
     val wordsData = textWOEmails.map(t => t.split("""\W+"""))
@@ -66,7 +74,7 @@ object TsExtractor {
       .map { case (word, numOccur) => (word, log(nDocs / numOccur.size) / log(2)) }.collect().toList.toMap
 
     println("TFIDF...")
-    val wordsTFIDF = wordsTF.map(text => text.map { case (word, tf) => (word, tf * wordsIDF.get(word).get) })
+    val wordsTFIDF = wordsTF.map(text => text.map { case (word, tf) => (word, tf * wordsIDF(word)) })
 
     //    Take words with TFIDF higher than mean value
     //    val wordsImportant = wordsTFIDF.map(text => text.filter { case (word: String, tfidf: Double) => tfidf > text.values.sum / text.size })
@@ -81,7 +89,8 @@ object TsExtractor {
       .flatMap(w => w)
       .distinct()
 
-    vocabRDD.zipWithIndex().saveAsObjectFile("./data/vocabRDD")
+    Path(PATH_OUTPUT + "vocabRDD").deleteRecursively()
+    vocabRDD.zipWithIndex().saveAsObjectFile(PATH_OUTPUT + "vocabRDD")
 
     val vocabList = vocabRDD
       .collect()
@@ -94,14 +103,19 @@ object TsExtractor {
     println("Zipping text with TFIDF coefficients... ")
     val zippedRDD = wordsData.map(_.toList).zip(wordsTFIDF)
     val wordsDataIndexedByTFIDF = zippedRDD
-      .map { case (list, tfidfMap) => (list
-        .map(word => (word, tfidfMap.get(word).get)))
+      .map { case (list, tfidfMap) => list
+        .map(word => (word, tfidfMap(word)))
       }
 
     println("Windowing texts...")
-    val windowedTexts = sc.parallelize(wordsDataIndexedByTFIDF.collect.map(_.sliding(20, 20).toList).map(list => list.map(_.toMap))).zipWithIndex()
+    val windowedTexts = sc.parallelize(wordsDataIndexedByTFIDF.collect.map(_.sliding(windowSize, windowSize).toList).map(list => list.map(_.toMap))).zipWithIndex()
 
     println("Generating time series...")
-    windowedTexts.map { case (list, index) => writeDenseTimeSeries(list, vocabList, vocabLength, "text" + index) }.count()
+    for {
+      files <- Option(new File(PATH_OUTPUT + "denseTS").listFiles)
+      file <- files if file.exists()
+    } file.delete()
+    windowedTexts.map { case (list, index) => writeDenseTimeSeries(list, vocabList, vocabLength, PATH_OUTPUT + "denseTS/text" + index + ".txt") }.count()
+//    windowedTexts.map { case (list, index) => writeSparseTimeSeries(list, vocabList, vocabLength, PATH_OUTPUT + "sparseTS/text" + index + ".txt") }.count()
   }
 }

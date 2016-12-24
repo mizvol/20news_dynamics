@@ -3,7 +3,7 @@ import org.apache.spark.graphx.{Graph, _}
 import org.apache.spark.mllib.linalg.Vectors
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{Row, SparkSession}
-import scala.collection.mutable.ArrayBuffer
+import ch.epfl.lts2.Globals._
 
 /**
   * Created by volodymyrmiz on 05.10.16.
@@ -26,9 +26,9 @@ object TrainGraph {
     val sc = spark.sparkContext
 
 //    val trRDD = sc.objectFile[(ArrayBuffer[String], Long)]("./data/trRDD").sortBy(_._2).map(_._1)
-    val trRDD = sc.objectFile[(List[String], Long)]("./data/trRDD").sortBy(_._2).map(_._1)
+    val trRDD = sc.objectFile[(List[String], Long)](PATH_OUTPUT + "trRDD").sortBy(_._2).map(_._1)
 
-    val vocabulary = sc.objectFile[(String, Long)]("./data/vocabRDD").sortBy(_._2).map(_._1).collect().toList
+    val vocabulary = sc.objectFile[(String, Long)](PATH_OUTPUT + "vocabRDD").sortBy(_._2).map(_._1).collect().toList
 
     println("Vocabulary length: " + vocabulary.length)
     println("Preparing vertices for GraphX...")
@@ -41,7 +41,7 @@ object TrainGraph {
 
     println("Preparing edges for GraphX...")
     //Construct edges list for GraphX from vocabulary
-    val edgeIndexes = for (i <- 0 to vocabulary.length - 1) yield i.toLong
+    val edgeIndexes = for (i <- vocabulary.indices) yield i.toLong
     val edgeIndexesRDD = sc.parallelize(edgeIndexes)
     val edgesRDD = edgeIndexesRDD.cartesian(edgeIndexesRDD)
       .filter { case (a, b) => a < b }
@@ -57,13 +57,13 @@ object TrainGraph {
     println("Training complete graph with " + edgesRDD.count() + " edges...")
     val trainedGraph = graph.mapTriplets(triplet => compareTimeSeries(triplet.dstAttr._2, triplet.srcAttr._2)).mapVertices((vID, attr) => attr._1).cache()
     println("Removing low weight edges...")
-    val prunedGraph = removeLowWeightEdges(trainedGraph, minWeight = 3.0).cache()
+    val prunedGraph = removeLowWeightEdges(trainedGraph, minWeight = 1.0).cache()
     println("Filtered graph with " + prunedGraph.edges.count() + " edges.")
     println("Removing sigletone vertices...")
     val connectedGraph = removeSingletons(prunedGraph).cache()
     println(connectedGraph.vertices.count() + " vertices remain.")
 
     println("Saving graph...")
-    saveGraph(connectedGraph, "oneCategory.gexf")
+    saveGraph(connectedGraph, PATH_OUTPUT + "graph.gexf")
   }
 }

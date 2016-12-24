@@ -2,6 +2,9 @@ package ch.epfl.lts2
 
 import org.apache.spark.sql.{Row, SparkSession}
 import ch.epfl.lts2.Utils._
+import ch.epfl.lts2.Globals._
+
+import scala.reflect.io.Path
 
 /**
   * Created by volodymyrmiz on 16.10.16.
@@ -22,7 +25,7 @@ object TransposeTS {
     val sc = spark.sparkContext
 
     println("Transposing dataset...")
-    val tsRDD = sc.textFile("./denseTs/text*.txt")
+    val tsRDD = sc.textFile(PATH_OUTPUT + "denseTS/text*.txt")
     val rowRDD = tsRDD.map(_.split(",")).map(attr => Row.fromSeq(attr)).cache()
 //    val trRDD = sc.parallelize(rowRDD.map(_.toSeq).collect.toSeq.transpose)
     val trRDD = rowRDD.map(_.toSeq)
@@ -35,6 +38,7 @@ object TransposeTS {
       .sortBy(_._1)
       .map(_._2)
 
-    trRDD.zipWithIndex().saveAsObjectFile("./data/trRDD")
+    Path(PATH_OUTPUT + "trRDD").deleteRecursively()
+    trRDD.zipWithIndex().saveAsObjectFile(PATH_OUTPUT + "trRDD")
   }
 }

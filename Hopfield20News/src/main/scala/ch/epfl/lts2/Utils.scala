@@ -57,12 +57,12 @@ package object Utils {
     pw.close
   }
 
-  def writeDenseTimeSeries(text: List[Map[String, Double]], vocabulary: List[String], vocabLength: Int, fileName: String) = {
-    val pw = new PrintWriter(new File("./denseTs/" + fileName + ".txt"))
+  def writeDenseTimeSeries(text: List[Map[String, Double]], vocabulary: List[String], vocabLength: Int, path: String) = {
+    val pw = new PrintWriter(new File(path))
     for (window <- text) {
-      val indexes = vocabulary.filter(window.keys.toList.contains(_)).map(word => (vocabulary.indexOf(word), window.get(word).get))
+      val indexes = vocabulary.filter(window.keys.toList.contains(_)).map(word => (vocabulary.indexOf(word), window(word)))
       val vector = Vectors.sparse(vocabLength, indexes.map(_._1).toArray, indexes.map(_._2).toArray)
-      if (vector.toSparse.indices.size != 0) {
+      if (vector.toSparse.indices.length != 0) {
         val vectorString = vector.toDense.toString()
         pw.write(vectorString.substring(1, vectorString.length - 1) + "\n")
       }
@@ -70,12 +70,12 @@ package object Utils {
     pw.close()
   }
 
-  def writeSparseTimeSeries(text: List[Map[String, Double]], vocabulary: List[String], vocabLength: Int, fileName: String) = {
-    val pw = new PrintWriter(new File("./sparseTs" + fileName + ".txt"))
+  def writeSparseTimeSeries(text: List[Map[String, Double]], vocabulary: List[String], vocabLength: Int, path: String) = {
+    val pw = new PrintWriter(new File(path))
     for (window <- text) {
-      val indexes = vocabulary.filter(window.keys.toList.contains(_)).map(word => (vocabulary.indexOf(word), window.get(word).get))
+      val indexes = vocabulary.filter(window.keys.toList.contains(_)).map(word => (vocabulary.indexOf(word), window(word)))
       val vector = Vectors.sparse(vocabLength, indexes.map(_._1).toArray, indexes.map(_._2).toArray)
-      if (vector.toSparse.indices.size != 0) {
+      if (vector.toSparse.indices.length != 0) {
         pw.write(vector + "\n")
       }
     }
@@ -97,12 +97,12 @@ package object Utils {
   def compareTimeSeries(m1: Map[Int, Double], m2: Map[Int, Double]): Double = {
     val commonKeys = m2.keySet.intersect(m1.keySet)
 
-    if (commonKeys.size == 0) 0
+    if (commonKeys.isEmpty) 0
     else {
       var weight: Double = 0.0
       for (key <- commonKeys) {
-        val value1 = m1.get(key).get
-        val value2 = m2.get(key).get
+        val value1 = m1(key)
+        val value2 = m2(key)
         var threshold = 0.0
 
         if (value1 > value2)
