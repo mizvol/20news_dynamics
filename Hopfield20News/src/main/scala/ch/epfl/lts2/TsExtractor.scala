@@ -6,7 +6,6 @@ import org.apache.spark.ml.feature.StopWordsRemover
 import org.apache.spark.sql.SparkSession
 import ch.epfl.lts2.Utils._
 import ch.epfl.lts2.Globals._
-import org.apache.spark.mllib.linalg.SparseVector
 import org.apache.spark.mllib.linalg.Vectors
 
 import scala.collection.immutable.ListMap
