@@ -20,32 +20,18 @@ object TrainGraph {
       .appName("Hopfileld Filtering 20NEWS")
       .config("spark.sql.warehouse.dir", "../")
       .config("spark.driver.maxResultSize", "4g")
-      .config("spark.executor.cores", "1")
+      .config("spark.executor.cores", "5")
       .config("spark.executor.memory", "10g")
       .getOrCreate()
 
     val sc = spark.sparkContext
 
-    //    val trRDD = sc.objectFile[(ArrayBuffer[String], Long)]("./data/trRDD").sortBy(_._2).map(_._1)
     val trRDD = sc.objectFile[(SparseVector, Long)](PATH_OUTPUT + "trRDD").sortBy(_._2).map(_._1)
 
     val vocabulary = sc.objectFile[(String, Long)](PATH_OUTPUT + "vocabRDD").sortBy(_._2).map(_._1).collect().toList
 
     println("Vocabulary length: " + vocabulary.length)
     println("Preparing vertices for GraphX...")
-    //    val verticesRDD = trRDD
-    //      .zipWithIndex()
-    //      .map(ts =>
-    //        (ts._2.toLong, (vocabulary(ts._2.toInt),
-    //          Vectors.dense(ts._1.map(_.toString.toDouble).toArray).toSparse.indices
-    //            .zip(Vectors.dense(ts._1.map(_.toString.toDouble).toArray).toSparse.values).toMap)))
-
-//    val verticesRDD = trRDD
-//      .zipWithIndex()
-//      .map(ts =>
-//        (ts._2.toLong, (vocabulary(ts._2.toInt),
-//          Vectors.dense(ts._1).toSparse.indices
-//            .zip(Vectors.dense(ts._1).toSparse.values).toMap)))
 
     val verticesRDD = trRDD
       .zipWithIndex()
@@ -72,7 +58,7 @@ object TrainGraph {
     println("Training complete graph with " + edgesRDD.count() + " edges...")
     val trainedGraph = graph.mapTriplets(triplet => compareTimeSeries(triplet.dstAttr._2, triplet.srcAttr._2)).mapVertices((vID, attr) => attr._1).cache()
     println("Removing low weight edges...")
-    val prunedGraph = removeLowWeightEdges(trainedGraph, minWeight = 3.0).cache()
+    val prunedGraph = removeLowWeightEdges(trainedGraph, minWeight = 1.0).cache()
     println("Filtered graph with " + prunedGraph.edges.count() + " edges.")
     println("Removing sigletone vertices...")
     val connectedGraph = removeSingletons(prunedGraph).cache()

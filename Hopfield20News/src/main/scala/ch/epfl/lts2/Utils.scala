@@ -1,8 +1,10 @@
 package ch.epfl.lts2
 
 import java.io.{File, PrintWriter}
+
 import org.apache.spark.graphx.Graph
-import org.apache.spark.mllib.linalg.Vectors
+import org.apache.spark.mllib.linalg.{SparseVector, Vectors}
+
 import scala.reflect.ClassTag
 
 /**
@@ -80,6 +82,11 @@ package object Utils {
       }
     }
     pw.close()
+  }
+
+  def writeTS(text: Map[String, Double], vocabulary: List[String], vLength: Int): SparseVector = {
+    val indexes = vocabulary.filter(text.keys.toList.contains(_)).map(word => (vocabulary.indexOf(word), text(word)))
+    Vectors.sparse(vLength, indexes.map(_._1).toArray, indexes.map(_._2).toArray).toSparse
   }
 
   def removeLowWeightEdges[VD: ClassTag, ED: ClassTag](graph: Graph[VD, ED], minWeight: Double) = {
