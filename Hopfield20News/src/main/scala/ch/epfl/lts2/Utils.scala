@@ -2,6 +2,7 @@ package ch.epfl.lts2
 
 import java.io.{File, PrintWriter}
 
+import breeze.linalg.{max, min}
 import org.apache.spark.graphx.Graph
 import org.apache.spark.mllib.linalg.{SparseVector, Vectors}
 
@@ -95,6 +96,15 @@ package object Utils {
     )
   }
 
+  def removeLowWeightEdges[VD: ClassTag, ED: ClassTag](graph: Graph[VD, ED]) = {
+    val weights = graph.edges.map(e=>(e.attr)).collect.map(_.toString.toDouble)
+    val mean = weights.sum.toString.toDouble/weights.length
+
+    Graph(graph.vertices,
+      graph.edges.filter(_.attr.toString.toDouble > mean)
+    )
+  }
+
   def removeSingletons[VD: ClassTag, ED: ClassTag](graph: Graph[VD, ED]) =
     Graph(graph.triplets.map(et => (et.srcId, et.srcAttr))
       .union(graph.triplets.map(et => (et.dstId, et.dstAttr)))
@@ -110,13 +120,7 @@ package object Utils {
       for (key <- commonKeys) {
         val value1 = m1(key)
         val value2 = m2(key)
-        var threshold = 0.0
-
-        if (value1 > value2)
-          threshold = value2/value1
-        else
-          threshold = value1/value2
-
+        val threshold = min(value1, value2)/max(value1, value2)
         if (threshold > 0.5) weight += threshold
         else weight -= threshold
       }
