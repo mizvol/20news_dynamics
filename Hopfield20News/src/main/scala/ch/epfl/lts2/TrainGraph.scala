@@ -4,6 +4,7 @@ import org.apache.spark.mllib.linalg.Vectors
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{Row, SparkSession}
 import ch.epfl.lts2.Globals._
+import org.apache.spark.mllib.feature.Normalizer
 import org.apache.spark.mllib.linalg.{DenseVector, SparseVector}
 
 /**
@@ -33,12 +34,14 @@ object TrainGraph {
     println("Vocabulary length: " + vocabulary.length)
     println("Preparing vertices for GraphX...")
 
-    val verticesRDD = trRDD
+    val normalizer = new Normalizer()
+
+    val verticesRDD = trRDD.map(activation => normalizer.transform(activation))
       .zipWithIndex()
       .map(ts =>
         (ts._2.toLong, (vocabulary(ts._2.toInt),
-          ts._1.indices
-            .zip(ts._1.values).toMap)))
+          ts._1.toSparse.indices
+            .zip(ts._1.toSparse.values).toMap)))
 
     println("Preparing edges for GraphX...")
     //Construct edges list for GraphX from vocabulary
@@ -58,7 +61,8 @@ object TrainGraph {
     println("Training complete graph with " + edgesRDD.count() + " edges...")
     val trainedGraph = graph.mapTriplets(triplet => compareTimeSeries(triplet.dstAttr._2, triplet.srcAttr._2)).mapVertices((vID, attr) => attr._1).cache()
     println("Removing low weight edges...")
-    val prunedGraph = removeLowWeightEdges(trainedGraph, minWeight = 1.0).cache()
+    //    val prunedGraph = removeLowWeightEdges(trainedGraph, minWeight = 2).cache()
+    val prunedGraph = removeLowWeightEdges(trainedGraph).cache()
     println("Filtered graph with " + prunedGraph.edges.count() + " edges.")
     println("Removing sigletone vertices...")
     val connectedGraph = removeSingletons(prunedGraph).cache()
