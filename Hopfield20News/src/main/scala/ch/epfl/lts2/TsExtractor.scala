@@ -25,15 +25,15 @@ object TsExtractor {
       .master("local[*]")
       .appName("Time Series Extractor")
       .config("spark.sql.warehouse.dir", "../")
-      .config("spark.driver.maxResultSize", "10g")
+      .config("spark.driver.maxResultSize", "30g")
       .config("spark.executor.cores", "5")
-      .config("spark.executor.memory", "10g")
+      .config("spark.executor.memory", "30g")
       .getOrCreate()
 
     val sc = spark.sparkContext
 
-    val windowSize = 5
-    val numFrequentWords = 5000
+    val windowSize = 20000
+    val numFrequentWords = 1000
     val fractionOfUselessWords = 0.99
 
     println("Reading data...")
@@ -60,8 +60,9 @@ object TsExtractor {
     println("Cleaning texts. Tokenization...")
     val wordsData = textWOEmails.map(t => t.split("""\W+"""))
       .map(t => t.map(_.toLowerCase.replaceAll("_", ""))
-//        .filter(token => rxNumbers.pattern.matcher(token).matches() & token.length() > 2 & !stopWords.contains(token) & !frequentWords.contains(token)))
-        .filter(token => rxNumbers.pattern.matcher(token).matches() & token.length() > 2 & !stopWords.contains(token)))
+        .filter(token => rxNumbers.pattern.matcher(token).matches() & token.length() > 2 & !stopWords.contains(token) & !frequentWords.contains(token)))
+//        .filter(token => rxNumbers.pattern.matcher(token).matches() & token.length() > 1)) // with stopwords
+//        .filter(token => rxNumbers.pattern.matcher(token).matches() & token.length() > 2 & !stopWords.contains(token))) // with frequent words
 
     println("TF...")
     val wordsTF = wordsData
@@ -121,5 +122,17 @@ object TsExtractor {
     val trRDD = sc.parallelize(transposed.map(Vectors.dense(_).toSparse))
     Path(PATH_OUTPUT + "trRDD").deleteRecursively()
     trRDD.zipWithIndex().saveAsObjectFile(PATH_OUTPUT + "trRDD")
+
+
+    import java.io._
+
+    val file = PATH_OUTPUT + "transposed.txt"
+    val writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file)))
+    for (x <- transposed) {
+      writer.write(x.mkString(",") + "\n")
+    }
+    writer.close()
+
+
   }
 }
