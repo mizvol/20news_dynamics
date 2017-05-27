@@ -1,6 +1,7 @@
+import java.util.Calendar
+
 import ch.epfl.lts2.Utils._
 import org.apache.spark.graphx.{Graph, _}
-import org.apache.spark.mllib.linalg.Vectors
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{Row, SparkSession}
 import ch.epfl.lts2.Globals._
@@ -20,9 +21,9 @@ object TrainGraph {
       .master("local[*]")
       .appName("Hopfileld Filtering 20NEWS")
       .config("spark.sql.warehouse.dir", "../")
-      .config("spark.driver.maxResultSize", "4g")
+      .config("spark.driver.maxResultSize", "10g")
       .config("spark.executor.cores", "5")
-      .config("spark.executor.memory", "10g")
+      .config("spark.executor.memory", "50g")
       .getOrCreate()
 
     val sc = spark.sparkContext
@@ -61,14 +62,17 @@ object TrainGraph {
     println("Training complete graph with " + edgesRDD.count() + " edges...")
     val trainedGraph = graph.mapTriplets(triplet => compareTimeSeries(triplet.dstAttr._2, triplet.srcAttr._2)).mapVertices((vID, attr) => attr._1).cache()
     println("Removing low weight edges...")
-        val prunedGraph = removeLowWeightEdges(trainedGraph, minWeight = 1.5).cache()
-//    val prunedGraph = removeLowWeightEdges(trainedGraph).cache()
+
+    val prunedGraph = removeLowWeightEdges(trainedGraph, minWeight = 4).cache()
+//  val prunedGraph = removeLowWeightEdges(trainedGraph).cache() //use mean as a minWeight threshold
     println("Filtered graph with " + prunedGraph.edges.count() + " edges.")
-    println("Removing sigletone vertices...")
-    val connectedGraph = removeSingletons(prunedGraph).cache()
-    println(connectedGraph.vertices.count() + " vertices remain.")
+
+    println("Getting largest connected component...")
+    println("Start: " + Calendar.getInstance().getTime)
+    val largestCC = getLargestConnectedComponent(prunedGraph)
+    println("Stop: " + Calendar.getInstance().getTime)
 
     println("Saving graph...")
-    saveGraph(connectedGraph, PATH_OUTPUT + "graph.gexf")
+    saveGraph(largestCC, PATH_OUTPUT + "graph.gexf")
   }
 }
