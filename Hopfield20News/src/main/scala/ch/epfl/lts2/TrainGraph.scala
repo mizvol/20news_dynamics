@@ -7,6 +7,8 @@ import org.apache.spark.sql.{Row, SparkSession}
 import ch.epfl.lts2.Globals._
 import org.apache.spark.mllib.feature.Normalizer
 import org.apache.spark.mllib.linalg.{DenseVector, SparseVector}
+import org.slf4j.LoggerFactory
+import org.slf4j.Logger
 
 /**
   * Created by volodymyrmiz on 05.10.16.
@@ -14,9 +16,9 @@ import org.apache.spark.mllib.linalg.{DenseVector, SparseVector}
 object TrainGraph {
   def main(Args: Array[String]): Unit = {
     suppressLogs(List("org", "akka"))
-    /*
-    Create Spark Session and define Spark Context
-     */
+
+    val logger: Logger = LoggerFactory.getLogger(this.getClass)
+    
     val spark = SparkSession.builder
       .master("local[*]")
       .appName("Hopfileld Filtering 20NEWS")
@@ -32,8 +34,8 @@ object TrainGraph {
 
     val vocabulary = sc.objectFile[(String, Long)](PATH_OUTPUT + "vocabRDD").sortBy(_._2).map(_._1).collect().toList
 
-    println("Vocabulary length: " + vocabulary.length)
-    println("Preparing vertices for GraphX...")
+    logger.info("Vocabulary length: " + vocabulary.length)
+    logger.info("Preparing vertices for GraphX...")
 
     val normalizer = new Normalizer()
 
@@ -44,7 +46,7 @@ object TrainGraph {
           ts._1.toSparse.indices
             .zip(ts._1.toSparse.values).toMap)))
 
-    println("Preparing edges for GraphX...")
+    logger.info("Preparing edges for GraphX...")
     //Construct edges list for GraphX from vocabulary
     val edgeIndexes = for (i <- vocabulary.indices) yield i.toLong
     val edgeIndexesRDD = sc.parallelize(edgeIndexes)
@@ -52,27 +54,27 @@ object TrainGraph {
       .filter { case (a, b) => a < b }
       .map(pair => Edge(pair._1, pair._2, 1.0))
 
-    println("Constructing complete Graph...")
+    logger.info("Constructing complete Graph...")
     type Vertex = (String, Map[Int, Double])
     val vertices: RDD[(VertexId, Vertex)] = verticesRDD
     val edges: RDD[Edge[Double]] = edgesRDD
 
     val graph = Graph(vertices, edges)
 
-    println("Training complete graph with " + edgesRDD.count() + " edges...")
+    logger.info("Training complete graph with " + edgesRDD.count() + " edges...")
     val trainedGraph = graph.mapTriplets(triplet => compareTimeSeries(triplet.dstAttr._2, triplet.srcAttr._2)).mapVertices((vID, attr) => attr._1).cache()
-    println("Removing low weight edges...")
+    logger.info("Removing low weight edges...")
 
     val prunedGraph = removeLowWeightEdges(trainedGraph, minWeight = 4).cache()
 //  val prunedGraph = removeLowWeightEdges(trainedGraph).cache() //use mean as a minWeight threshold
-    println("Filtered graph with " + prunedGraph.edges.count() + " edges.")
+    logger.info("Filtered graph with " + prunedGraph.edges.count() + " edges.")
 
-    println("Getting largest connected component...")
-    println("Start: " + Calendar.getInstance().getTime)
+    logger.info("Getting largest connected component...")
+    logger.info("Start: " + Calendar.getInstance().getTime)
     val largestCC = getLargestConnectedComponent(prunedGraph)
-    println("Stop: " + Calendar.getInstance().getTime)
+    logger.info("Stop: " + Calendar.getInstance().getTime)
 
-    println("Saving graph...")
+    logger.info("Saving graph...")
     saveGraph(largestCC, PATH_OUTPUT + "graph.gexf")
   }
 }

@@ -11,6 +11,8 @@ import org.apache.spark.mllib.linalg.Vectors
 import scala.collection.immutable.ListMap
 import scala.math._
 import scala.reflect.io.Path
+import org.slf4j.LoggerFactory
+import org.slf4j.Logger
 
 /**
   * Created by volodymyrmiz on 16.10.16.
@@ -18,9 +20,9 @@ import scala.reflect.io.Path
 object TsExtractor {
   def main(args: Array[String]): Unit = {
     suppressLogs(List("org", "akka"))
-    /*
-    Create Spark Session and define Spark Context
-     */
+
+    val logger: Logger = LoggerFactory.getLogger(this.getClass)
+    
     val spark = SparkSession.builder
       .master("local[*]")
       .appName("Time Series Extractor")
@@ -36,7 +38,7 @@ object TsExtractor {
     val numFrequentWords = 1000
     val fractionOfUselessWords = 0.99
 
-    println("Reading data...")
+    logger.info("Reading data...")
     val fullRDD = sc.wholeTextFiles(PATH_DATASET).cache()
     //    val fullRDD = sc.wholeTextFiles("./data/cnn/stories/*").cache()
 
@@ -45,7 +47,7 @@ object TsExtractor {
     /**
       * Tokenization. Split raw text content in each document into a collection of terms. Get vocabulary.
       */
-    println("Removing emails and URLs...")
+    logger.info("Removing emails and URLs...")
     val rxEmail = """(?i)\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,4}\b""".r
     val rxWebsite = """([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?""".r
     val rxNumbers = """[^0-9]*""".r
@@ -57,19 +59,19 @@ object TsExtractor {
     val stopWords = StopWordsRemover.loadDefaultStopWords("english")
     val frequentWords = sc.textFile("./frequentWords.txt").take(numFrequentWords).toList
 
-    println("Cleaning texts. Tokenization...")
+    logger.info("Cleaning texts. Tokenization...")
     val wordsData = textWOEmails.map(t => t.split("""\W+"""))
       .map(t => t.map(_.toLowerCase.replaceAll("_", ""))
         .filter(token => rxNumbers.pattern.matcher(token).matches() & token.length() > 2 & !stopWords.contains(token) & !frequentWords.contains(token)))
 //        .filter(token => rxNumbers.pattern.matcher(token).matches() & token.length() > 1)) // with stopwords
 //        .filter(token => rxNumbers.pattern.matcher(token).matches() & token.length() > 2 & !stopWords.contains(token))) // with frequent words
 
-    println("TF...")
+    logger.info("TF...")
     val wordsTF = wordsData
       .map(text => text.groupBy(word => word).map { case (word, num) => (word, num.length) })
       .map(text => text.map { case (word, numOccur) => (word, numOccur / text.values.max.toDouble) })
 
-    println("IDF...")
+    logger.info("IDF...")
     val nDocs = wordsData.count()
     val wordsIDF = wordsData
       .map(text => text.distinct)
@@ -77,13 +79,13 @@ object TsExtractor {
       .groupBy(w => w)
       .map { case (word, numOccur) => (word, log(nDocs / numOccur.size) / log(2)) }.collect().toList.toMap
 
-    println("TFIDF...")
+    logger.info("TFIDF...")
     val wordsTFIDF = wordsTF.map(text => text.map { case (word, tf) => (word, tf * wordsIDF(word)) })
 
     // Take a fraction of most significant TFIDFs
     val wordsImportant = wordsTFIDF.map(text => ListMap(text.toSeq.sortBy(_._2): _*).drop((text.size * fractionOfUselessWords).toInt))
 
-    println("Preparing vocabulary...")
+    logger.info("Preparing vocabulary...")
     val vocabRDD = wordsImportant
       .map(text => text
         .map { case (word, tfidf) => word })
@@ -99,26 +101,26 @@ object TsExtractor {
 
     val vocabLength = vocabList.length
 
-    println("Vocabulary length: " + vocabLength)
+    logger.info("Vocabulary length: " + vocabLength)
 
-    println("Zipping text with TFIDF coefficients... ")
+    logger.info("Zipping text with TFIDF coefficients... ")
     val zippedRDD = wordsData.map(_.toList).map(_.filter(vocabList.contains(_))).zip(wordsTFIDF)
     val wordsDataIndexedByTFIDF = zippedRDD
       .map { case (list, tfidfMap) => list.map(word => (word, tfidfMap(word)))
       }
     wordsDataIndexedByTFIDF.count()
 
-    println("Windowing texts...")
+    logger.info("Windowing texts...")
     val windowedTexts = sc.parallelize(wordsDataIndexedByTFIDF.collect.map(_.sliding(windowSize, windowSize).toList)).map(list => list.map(_.toMap))
     windowedTexts.count()
 
-    println("Generating time series...")
+    logger.info("Generating time series...")
     val ts = windowedTexts.flatMap(data => data).map(text => writeTS(text, vocabList, vocabLength)).filter(_.numNonzeros > 0).map(_.toDense.toArray).collect()
 
-    println("Transposing TS...")
+    logger.info("Transposing TS...")
     val transposed = ts.transpose
 
-    println("Saving TS...")
+    logger.info("Saving TS...")
     val trRDD = sc.parallelize(transposed.map(Vectors.dense(_).toSparse))
     Path(PATH_OUTPUT + "trRDD").deleteRecursively()
     trRDD.zipWithIndex().saveAsObjectFile(PATH_OUTPUT + "trRDD")
