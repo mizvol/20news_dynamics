@@ -9,6 +9,11 @@ import scala.reflect.io.Path
 /**
   * Created by volodymyrmiz on 16.10.16.
   */
+
+/**
+  * DEPRECATED
+  */
+
 object TransposeTS {
   def main(args: Array[String]): Unit = {
     suppressLogs(List("org", "akka"))
@@ -24,7 +29,6 @@ object TransposeTS {
 
     val sc = spark.sparkContext
 
-    println("Transposing dataset...")
     val tsRDD = sc.textFile(PATH_OUTPUT + "denseTS/text*.txt")
     val rowRDD = tsRDD.map(_.split(",")).map(attr => Row.fromSeq(attr)).cache()
 //    val trRDD = sc.parallelize(rowRDD.map(_.toSeq).collect.toSeq.transpose)
